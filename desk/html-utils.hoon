@@ -480,18 +480,18 @@
   ++  prepend-attribute           pen:at
   ++  extend-attribute            ext:at
   ++  remove-attribute            del:at
-  ++  set-id                      (cury set-attribute %id)
-  ++  modify-id                   (cury modify-attribute %id)
-  ++  prepend-id                  (cury prepend-attribute %id)
-  ++  extend-id                   (cury extend-attribute %id)
-  ++  set-class                   (cury set-attribute %class)
-  ++  modify-class                (cury modify-attribute %class)
-  ++  prepend-class               (cury prepend-attribute %class)
-  ++  extend-class                (cury extend-attribute %class)
-  ++  set-style                   (cury set-attribute %style)
-  ++  modify-style                (cury modify-attribute %style)
-  ++  prepend-style               (cury prepend-attribute %style)
-  ++  extend-style                (cury extend-attribute %style)
+  ++  set-id                      (cury put:at %id)
+  ++  modify-id                   (cury jab:at %id)
+  ++  prepend-id                  (cury pen:at %id)
+  ++  extend-id                   (cury ext:at %id)
+  ++  set-class                   (cury put:at %class)
+  ++  modify-class                (cury jab:at %class)
+  ++  prepend-class               (cury pen:at %class)
+  ++  extend-class                (cury ext:at %class)
+  ++  set-style                   (cury put:at %style)
+  ++  modify-style                (cury jab:at %style)
+  ++  prepend-style               (cury pen:at %style)
+  ++  extend-style                (cury ext:at %style)
   ++  get-outer-html              get
   ++  set-outer-html              put
   ++  get-inner-html              gec
