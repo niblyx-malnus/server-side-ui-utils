@@ -541,12 +541,12 @@
       [~ p m]
     $(p (snip `path`p))
   :: Conditions
-  :: $-([path manx] ?)
   ::
   ++  con
     =<  con
     |%
     +$  con  $-([path manx] ?)
+    :: Negate condition
     ::
     ++  not
       |=  f=con
@@ -554,11 +554,13 @@
       |=  [p=path m=manx]
       ^-  ?
       !(f p m)
+    :: Is tag
     ::
     ++  tag
       |=  n=mane
       |=  [* m=manx] 
       =(n n.g.m)
+    :: Is id
     ::
     ++  sid
       |=  i=tape
@@ -566,6 +568,7 @@
       =/  u=(unit tape)
         (get:~(at mx m) %id)
       &(?=(^ u) =(i u.u))
+    :: Has class
     ::
     ++  cas
       |=  c=tape
@@ -574,16 +577,24 @@
       %~  has  in
       %-  parse-classes
       (gut:~(at mx m) %class "")
+    :: Has attribute
     ::
     ++  tar
       |=  n=mane
       |=  [* m=manx] 
       (has:~(at mx m) n)
+    :: Is attribute
     ::
     ++  tir
       |=  [n=mane v=tape]
       |=  [* m=manx] 
       =([~ v] (get:~(at mx m) n))
+    :: Is text node
+    ::
+    ++  tex
+      |=  [* m=manx] 
+      &(((tag %$) +<) ((tar %$) +<))
+    :: Attribute starts with
     ::
     ++  sat
       |=  [n=mane v=tape]
@@ -591,6 +602,7 @@
       =/  u=(unit tape)
         (get:~(at mx m) n)
       &(?=(^ u) =(v (scag (lent v) u.u)))
+    :: Attribute ends with
     ::
     ++  eat
       |=  [n=mane v=tape]
@@ -598,6 +610,7 @@
       =/  u=(unit tape)
         (get:~(at mx m) n)
       &(?=(^ u) =((flop v) (scag (lent v) (flop u.u))))
+    :: Attribute contains
     ::
     ++  cat
       |=  [n=mane v=tape]
@@ -605,6 +618,7 @@
       =/  u=(unit tape)
         (get:~(at mx m) n)
       &(?=(^ u) ?=(^ (find v u.u)))
+    :: Empty (no children)
     ::
     ++  emp  |=([* m=manx] =(~ c.m))
     --
@@ -633,7 +647,7 @@
   ++  val  |=(v=tape ?~(m=(gan v) ~ (get:~(at mx q.u.m) %value)))
   :: preorder concatenation of descendant text
   ::
-  ++  text-content  (zing ~(pre-get-text manx-utils a))
+  ++  all-text-content  (zing ~(pre-get-text manx-utils a))
   ::
   ++  inner-text                     !! :: deals with CSS hidden stuff
   ++  query-selector                 !! :: returns manx     CSS selector
