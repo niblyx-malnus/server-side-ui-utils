@@ -1,38 +1,5 @@
-/+  manx-utils
+/+  manx-utils, monads
 |%
-:: extract individual classes from a class tape
-::
-++  de-class
-  |=  classes=tape
-  ^-  (set tape)
-  :: replace all whitespace of any length with ' '
-  ::
-  =.  classes
-    ^-  tape
-    %+  scan  classes
-    %-  star
-    ;~  pose
-      (cold ' ' (plus gah))
-      next
-    ==
-  %-  ~(gas in *(set tape))
-
-  (split " " classes)
-:: borrowed from ~lagrev-nocfep's string library
-::
-++  split
-  |=  [sep=tape =tape]
-  ^-  (list ^tape)
-  =|  res=(list ^tape)
-  |-
-  ?~  tape  (flop res)
-  =/  off  (find sep tape)
-  ?~  off  (flop [`^tape`tape `(list ^tape)`res])
-  %=  $
-    res   [(scag `@ud`(need off) `^tape`tape) res]
-    tape  (slag +(`@ud`(need off)) `^tape`tape)
-  ==
-:: 
 ++  mx
   |_  a=manx
   :: manage root level attributes
@@ -278,6 +245,21 @@
     ?~  w=(wag i.p c.a)
       ~
     $(p t.p, a m.u.w)
+  :: Get existing or crash
+  ::
+  ++  got
+    |=  p=path
+    (need (get p))
+  :: Get with default
+  ::
+  ++  gut
+    |=  [p=path m=manx]
+    (fall (get p) m)
+  :: Check for existence
+  ::
+  ++  has
+    |=  p=path
+    !=(~ (get p))
   :: Get contents
   ::
   ++  gec
@@ -286,7 +268,22 @@
     ?~  m=(get p)
       ~
     [~ c.u.m]
-  :: Put new manx at address
+  :: Get existing contents or crash
+  ::
+  ++  goc
+    |=  p=path
+    (need (gec p))
+  :: Get with default
+  ::
+  ++  guc
+    |=  [p=path m=marl]
+    (fall (gec p) m)
+  :: Check contents existence
+  ::
+  ++  hac
+    |=  p=path
+    !=(~ (gec p))
+  :: Put new manx at address (must be existing)
   ::
   ++  put
     |=  [p=path m=manx]
@@ -295,6 +292,7 @@
       m
     ?~  w=(wag i.p c.a)
       a
+    ?>  (lth i.u.w (lent c.a))
     a(c (snap c.a i.u.w $(p t.p, a m.u.w)))
   :: Put new contents in manx at address
   ::
@@ -304,6 +302,31 @@
     ?~  g=(get p)
       a
     (put p [g.u.g m])
+  :: Delete a manx at an address (must be existing)
+  ::
+  ++  del
+    |=  p=path
+    ^-  manx
+    ?~  p  !!
+    ?~  w=(wag i.p c.a)
+      a
+    ?>  (lth i.u.w (lent c.a))
+    ?~  t.p
+      a(c (oust [i.u.w 1] c.a))
+    a(c (snap c.a i.u.w $(p t.p, a m.u.w)))
+  :: Delete contents of manx at an address
+  ::
+  ++  rem
+    |=  p=path
+    (puc p ~)
+  :: Add or delete manx at path
+  ::
+  ++  mar
+    |=  [p=path m=(unit manx)] 
+    ^-  manx
+    ?~  m
+      (del p)
+    (put p u.m)
   :: Put new manx just before first child (set-after-begin)
   ::
   ++  sab
@@ -311,7 +334,7 @@
     ^-  manx
     ?~  g=(get p)
       a
-    (put p [g.u.g m c.u.g])
+    (puc p [m c.u.g])
   :: Put new manx just after last child (set-before-end)
   ::
   ++  sbe
@@ -319,7 +342,7 @@
     ^-  manx
     ?~  g=(get p)
       a
-    (put p [g.u.g (weld c.u.g m ~)])
+    (puc p (weld c.u.g m ~))
   :: Put new manx just before this one in its parent (set-before-begin)
   ::
   ++  sbb
@@ -331,7 +354,7 @@
     ?~  g=(get q)
       a
     =/  i=@ud  (slav %ud (rear p))
-    (put q [g.u.g (into c.u.g i m)])
+    (puc q (into c.u.g i m))
   :: Put new manx just after this one in its parent (set-after-end)
   ::
   ++  sae
@@ -343,41 +366,41 @@
     ?~  g=(get q)
       a
     =/  i=@ud  (slav %ud (rear p))
-    (put q [g.u.g (into c.u.g +(i) m)])
-  :: children
+    (puc q (into c.u.g +(i) m))
+  :: children satisfying some condition
+  ::
+  ++  kiz
+    =|  i=@
+    |=  f=$-([path manx] ?)
+    ^-  (list (pair path manx))
+    ?~  c.a
+      ~
+    =/  q  /(scot %ud i)
+    ?.  (f q i.c.a)
+      $(i +(i), c.a t.c.a)
+    :-  [q i.c.a]
+    $(i +(i), c.a t.c.a)
+  :: nth child that satisfies some condition
   ::
   ++  kid
-    |=  p=path
-    ^-  (list (pair path manx))
-    ?~  g=(get p)
-      ~
     =|  i=@
-    |-
-    ?~  c.u.g
-      ~
-    :_  $(i +(i), c.u.g t.c.u.g)
-    [(snoc p (scot %ud i)) i.c.u.g]
-  :: first child
-  ::
-  ++  kad
-    |=  p=path
+    =/  j=@  1 :: 1-indexed
+    |=  [n=@ud f=$-([path manx] ?)]
     ^-  (unit (pair path manx))
-    ?~  g=(get p)
+    ?~  c.a
       ~
-    ?~  c.u.g
-      ~
-    [~ (snoc p ~.0) i.c.u.g]
-  :: last child
+    =/  q  /(scot %ud i)
+    ?.  (f q i.c.a)
+      $(i +(i), c.a t.c.a)
+    ?:  =(n j)
+      [~ q i.c.a]
+    $(j +(j), i +(i), c.a t.c.a)
+  :: nth last child that satisfies some condition
   ::
-  ++  kud
-    |=  p=path
-    ^-  (unit (pair path manx))
-    ?~  g=(get p)
-      ~
-    ?~  c.u.g
-      ~
-    :-  ~  :_  (rear c.u.g)
-    (snoc p (scot %ud (dec (lent c.u.g))))
+  ++  kib
+    |=  [n=@ud f=$-([path manx] ?)]
+    =.  c.a  (flop c.a)
+    (kid n f)
   :: Previous sibling
   ::
   ++  pes
@@ -404,64 +427,210 @@
     ?~  g=(get q)
       ~
     [~ q u.g]
-  :: Depth-first search for first element with id (assumes id uniqueness)
-  ::
-  ++  gid
+  :: Get a list of (pair path manx) which satisfy some condition
+  :: All descendants (including self)
+  :: level-order
+  :: 
+  ++  wic
     =|  p=path
-    |=  id=tape
-    ^-  (unit [path manx])
-    =/  v
-      ?~  g=(get:at %id)
+    |=  f=$-([path manx] ?)
+    |^  ^-  (list (pair path manx))
+    %+  weld
+      ?.((f p a) ~ [p a]~)
+    (cloop-a (en-path p c.a))
+    ::
+    ++  en-path
+      =|  i=@ud
+      |=  [p=path c=marl]
+      ^-  (list (pair path manx))
+      ?~  c
         ~
-      ?.  =(id u.g)
+      :_  $(c t.c)
+      [(snoc p (scot %ud i)) i.c]
+    ::
+    ++  cloop-a
+      |=  c=(list (pair path manx))
+      ^-  (list (pair path manx))
+      =/  l  c
+      |-
+      ^-  (list (pair path manx))
+      ?~  l
+        (cloop-b c)
+      %+  weld
+        ?.((f i.l) ~ [i.l ~])
+      $(l t.l)
+    ::
+    ++  cloop-b
+      |=  c=(list (pair path manx))
+      ^-  (list (pair path manx))
+      ?~  c
         ~
+      %+  weld
+        (cloop-a (en-path [p c.q]:i.c))
+      $(c t.c)
+    --
+  :: Get first (pair path manx) which satisfies some condition
+  :: if it exists
+  :: All descendants (including self)
+  :: level-order
+  ::
+  ++  wif
+    =|  p=path
+    |=  f=$-([path manx] ?)
+    |^  ^-  (unit (pair path manx))
+    ?:  (f p a)
       [~ p a]
-    ?^  v
-      v
-    =|  i=@ud
-    |-
-    ?~  c.a
-      ~
-    =/  w  ^$(a i.c.a, p (snoc p (scot %ud i)))
-    ?^  w
-      w
-    $(c.a t.c.a)
+    (cloop-a (en-path p c.a))
+    ::
+    ++  en-path
+      =|  i=@ud
+      |=  [p=path c=marl]
+      ^-  (list (pair path manx))
+      ?~  c
+        ~
+      :_  $(c t.c)
+      [(snoc p (scot %ud i)) i.c]
+    ::
+    ++  cloop-a
+      |=  c=(list (pair path manx))
+      ^-  (unit (pair path manx))
+      =/  l  c
+      |-
+      ?~  l
+        (cloop-b c)
+      ?:  (f i.l)
+        [~ i.l]
+      $(l t.l)
+    ::
+    ++  cloop-b
+      |=  c=(list (pair path manx))
+      ^-  (unit (pair path manx))
+      ?~  c
+        ~
+      ?^  u=(cloop-a (en-path [p c.q]:i.c))
+        u
+      $(c t.c)
+    --
+  :: Get a list of (pair path manx) which satisfy some condition
+  :: All ancestors (including self)
+  ::
+  ++  wac
+    |=  $:  p=path :: location in tree
+            f=$-([path manx] ?)
+        ==
+    ^-  (list (pair path manx))
+    ?~  p
+      ?.((f p a) ~ [p a]~)
+    =/  m=manx  (got p)
+    %+  weld
+      ?.((f p m) ~ [p m]~)
+    $(p (snip `path`p))
+  :: Get first (pair path manx) which satisfies some condition
+  :: if it exists
+  :: All ancestors (including self)
+  ::
+  ++  waf
+    |=  $:  p=path :: location in tree
+            f=$-([path manx] ?)
+        ==
+    ^-  (unit (pair path manx))
+    ?~  p
+      ?.((f p a) ~ [~ p a])
+    =/  m=manx  (got p)
+    ?:  (f p m)
+      [~ p m]
+    $(p (snip `path`p))
+  :: Conditions
+  :: $-([path manx] ?)
+  ::
+  ++  con
+    =<  con
+    |%
+    +$  con  $-([path manx] ?)
+    ::
+    ++  not
+      |=  f=con
+      ^-  con
+      |=  [p=path m=manx]
+      ^-  ?
+      !(f p m)
+    ::
+    ++  tag
+      |=  n=mane
+      |=  [* m=manx] 
+      =(n n.g.m)
+    ::
+    ++  sid
+      |=  i=tape
+      |=  [* m=manx] 
+      =/  u=(unit tape)
+        (get:~(at mx m) %id)
+      &(?=(^ u) =(i u.u))
+    ::
+    ++  cas
+      |=  c=tape
+      |=  [* m=manx] 
+      %.  c
+      %~  has  in
+      %-  parse-classes
+      (gut:~(at mx m) %class "")
+    ::
+    ++  tar
+      |=  n=mane
+      |=  [* m=manx] 
+      (has:~(at mx m) n)
+    ::
+    ++  tir
+      |=  [n=mane v=tape]
+      |=  [* m=manx] 
+      =([~ v] (get:~(at mx m) n))
+    ::
+    ++  sat
+      |=  [n=mane v=tape]
+      |=  [* m=manx] 
+      =/  u=(unit tape)
+        (get:~(at mx m) n)
+      &(?=(^ u) =(v (scag (lent v) u.u)))
+    ::
+    ++  eat
+      |=  [n=mane v=tape]
+      |=  [* m=manx] 
+      =/  u=(unit tape)
+        (get:~(at mx m) n)
+      &(?=(^ u) =((flop v) (scag (lent v) (flop u.u))))
+    ::
+    ++  cat
+      |=  [n=mane v=tape]
+      |=  [* m=manx] 
+      =/  u=(unit tape)
+        (get:~(at mx m) n)
+      &(?=(^ u) ?=(^ (find v u.u)))
+    ::
+    ++  emp  |=([* m=manx] =(~ c.m))
+    --
+  :: Some common getters
+  ::
+  :: Get element by id
+  ::
+  ++  gid  |=(i=tape (wif (sid:con i)))
   :: Get elements by tag name
   ::
-  ++  gat
-    =|  p=path
-    |=  n=mane
-    ^-  (list [path manx])
-    =/  v=(list [path manx])
-      ?.(=(n n.g.a) ~ [p a]~)
-    =|  i=@ud
-    |-
-    ?~  c.a
-      v
-    =.  v
-      %+  weld  `(list [path manx])`v
-      ^$(a i.c.a, p (snoc p (scot %ud i)))
-    $(c.a t.c.a)
+  ++  gag  |=(n=mane (wic (tag:con n)))
   :: Get elements by class name
   ::
-  ++  gac
-    =|  p=path
-    |=  c=tape
-    ^-  (list [path manx])
-    =/  v=(list [path manx])
-      ?~  g=(get:at %class)
-        ~
-      ?.  (~(has in (de-class u.g)) c)
-        ~
-      [p a]~
-    =|  i=@ud
-    |-
-    ?~  c.a
-      v
-    =.  v
-      %+  weld  `(list [path manx])`v
-      ^$(a i.c.a, p (snoc p (scot %ud i)))
-    $(c.a t.c.a)
+  ++  gac  |=(c=tape (wic (cas:con c)))
+  :: Get elements with attribute
+  ::
+  ++  gat  |=(n=mane (wic (tar:con n)))
+  :: Get elements by attribute
+  ::
+  ++  git  |=([n=mane v=tape] (wic (tir:con n v)))
+  :: First descendant with given name attribute
+  ::
+  ++  gan  |=(v=tape (wif (tir:con %name v)))
+  :: Value attribute of first descendant with given name attribute
+  ::
+  ++  val  |=(v=tape ?~(m=(gan v) ~ (get:~(at mx q.u.m) %value)))
   :: preorder concatenation of descendant text
   ::
   ++  text-content  (zing ~(pre-get-text manx-utils a))
@@ -474,39 +643,98 @@
   ++  closest                        !! :: returns manx     CSS selector
   :: aliases
   ::
-  ++  get-attribute               get:at
-  ++  set-attribute               put:at
-  ++  modify-attribute            jab:at
-  ++  prepend-attribute           pen:at
-  ++  extend-attribute            ext:at
-  ++  remove-attribute            del:at
-  ++  set-id                      (cury put:at %id)
-  ++  modify-id                   (cury jab:at %id)
-  ++  prepend-id                  (cury pen:at %id)
-  ++  extend-id                   (cury ext:at %id)
-  ++  set-class                   (cury put:at %class)
-  ++  modify-class                (cury jab:at %class)
-  ++  prepend-class               (cury pen:at %class)
-  ++  extend-class                (cury ext:at %class)
-  ++  set-style                   (cury put:at %style)
-  ++  modify-style                (cury jab:at %style)
-  ++  prepend-style               (cury pen:at %style)
-  ++  extend-style                (cury ext:at %style)
-  ++  get-outer-html              get
-  ++  set-outer-html              put
-  ++  get-inner-html              gec
-  ++  set-inner-html              puc
-  ++  set-after-begin             sab
-  ++  set-before-end              sbe
-  ++  set-before-begin            sbb
-  ++  set-after-end               sae
-  ++  children                    kid
-  ++  first-child                 kad
-  ++  last-child                  kud
-  ++  previous-sibling            pes
-  ++  next-sibling                nes
-  ++  get-element-by-id           gid
-  ++  get-elements-by-tag-name    gat
-  ++  get-elements-by-class-name  gac
+  ++  get-attribute                    get:at
+  ++  set-attribute                    put:at
+  ++  modify-attribute                 jab:at
+  ++  prepend-attribute                pen:at
+  ++  extend-attribute                 ext:at
+  ++  remove-attribute                 del:at
+  ++  get-id                           (get:at %id)
+  ++  set-id                           (cury put:at %id)
+  ++  modify-id                        (cury jab:at %id)
+  ++  prepend-id                       (cury pen:at %id)
+  ++  extend-id                        (cury ext:at %id)
+  ++  get-class                        (get:at %class)
+  ++  set-class                        (cury put:at %class)
+  ++  modify-class                     (cury jab:at %class)
+  ++  prepend-class                    (cury pen:at %class)
+  ++  extend-class                     (cury ext:at %class)
+  ++  get-style                        (get:at %style)
+  ++  set-style                        (cury put:at %style)
+  ++  modify-style                     (cury jab:at %style)
+  ++  prepend-style                    (cury pen:at %style)
+  ++  extend-style                     (cury ext:at %style)
+  ++  get-outer-html                   get
+  ++  set-outer-html                   put
+  ++  get-inner-html                   gec
+  ++  set-inner-html                   puc
+  ++  delete-node                      del
+  ++  remove-inner-html                rem
+  ++  set-after-begin                  sab
+  ++  set-before-end                   sbe
+  ++  set-before-begin                 sbb
+  ++  set-after-end                    sae
+  ++  children                         (kiz _%.y)
+  ++  nth-child                        (curr kid _%.y)
+  ++  nth-last-child                   (curr kib _%.y)
+  ++  first-child                      (kid 1 _%.y)
+  ++  last-child                       (kib 1 _%.y)
+  ++  previous-sibling                 pes
+  ++  next-sibling                     nes
+  ++  get-element-by-id                gid
+  ++  get-elements-by-tag-name         gag
+  ++  get-elements-by-class-name       gac
+  ++  get-elements-with-attribute      gat
+  ++  get-elements-by-attribute        git
+  ++  get-first-element-by-name        gan
+  ++  get-first-value-by-name          val
+  ++  get-descendants-by               wic
+  ++  get-first-descendant-by          wif
+  ++  get-ancestors-by                 wac
+  ++  get-first-ancestor-by            waf
+  ++  is-tag                           tag:con
+  ++  is-id                            sid:con
+  ++  has-class                        cas:con
+  ++  has-attribute                    tar:con
+  ++  is-attribute                     tir:con
+  ++  attribute-starts-with            sat:con
+  ++  attribute-ends-with              eat:con
+  ++  attribute-contains               cat:con
+  ++  empty                            emp:con
+  ::
+  ++  first-child-of-type     |=(t=mane (kid 1 (tag:con t)))
+  ++  last-child-of-type      |=(t=mane (kib 1 (tag:con t)))
+  ++  nth-child-of-type       |=([n=@ud t=mane] (kid n (tag:con t)))
+  ++  nth-last-child-of-type  |=([n=@ud t=mane] (kib n (tag:con t)))
+  --
+:: 
+++  parse-classes
+  =<  parse
+  =,  parser:monads
+  |%
+  ++  parse  |=(=tape (sy (fall (rust tape classes) ~)))
+  ++  class
+    =/  gah=(set @t)  (sy [`@t`10 ' ' ~])
+    =|  class=tape
+    |-
+    ;<  c=(unit char)  bind  near
+    ?~  c
+      (easy class)
+    ?:  (~(has in gah) u.c)
+      (easy class)
+    ;<  *  bind  next
+    $(class (weld class u.c ~))
+  ::
+  ++  classes
+    =|  classes=(list tape)
+    |-
+    ;<  white=tape  bind  (star gah)
+    ;<  class=tape  bind  class
+    =?  classes  ?=(^ class)
+      [class classes]
+    ;<  d=?  bind  done
+    ?.  d
+      $
+    (easy (flop classes)) 
   --
 --
