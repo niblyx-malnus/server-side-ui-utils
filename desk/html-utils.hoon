@@ -222,6 +222,45 @@
     ++  yan
       |=  f=$-([mane tape] ?)
       (lien a.g.a f)
+    ::
+    ++  gid  (get %id)
+    ++  gac  (get %class)
+    ++  ges  (get %style)
+    ++  gen  (get %name)
+    ++  gev  (get %value)
+    :: Put id
+    ::
+    ++  pid  |=(i=tape (put:at %id i))
+    :: Put class(es)
+    ::
+    ++  pac
+      |=  t=tape
+      =/  c  (parse-classes (gut:at %class "")) :: current
+      =/  n  (parse-classes t)                  :: new
+      (put:at %class (zing (join " " (weld c n))))
+    :: Delete class(es)
+    ::
+    ++  dac
+      |=  t=tape
+      =/  c  (parse-classes (gut:at %class "")) :: current
+      =/  n  (sy (parse-classes t))             :: new
+      =.  c
+        |-
+        ?~  c
+          ~
+        ?:  (~(has in n) i.c)
+          $(c t.c)
+        [i.c $(c t.c)]
+      (put:at %class (zing (join " " c)))
+    :: Put style
+    ::
+    ++  pus  |=(s=tape (put:at %style s))
+    :: Put name
+    ::
+    ++  pun  |=(n=tape (put:at %name n))
+    :: Put value
+    ::
+    ++  puv  |=(v=tape (put:at %value v))
     --
   :: An address is a list of knots which can be parsed to a @ud.
   :: This allows us to manually enter paths with e.g. /3/6/5/0.
@@ -297,11 +336,14 @@
   :: Put new contents in manx at address
   ::
   ++  puc
-    |=  [p=path m=marl]
+    |=  [p=path c=marl]
     ^-  manx
-    ?~  g=(get p)
+    ?~  p
+      a(c c)
+    ?~  w=(wag i.p c.a)
       a
-    (put p [g.u.g m])
+    ?>  (lth i.u.w (lent c.a))
+    a(c (snap c.a i.u.w $(p t.p, a m.u.w)))
   :: Delete a manx at an address (must be existing)
   ::
   ++  del
@@ -319,7 +361,7 @@
   ++  rem
     |=  p=path
     (puc p ~)
-  :: Add or delete manx at path
+  :: Put or delete manx at path
   ::
   ++  mar
     |=  [p=path m=(unit manx)] 
@@ -575,7 +617,7 @@
       |=  [* m=manx] 
       %.  c
       %~  has  in
-      %-  parse-classes
+      %-  sy  %-  parse-classes
       (gut:~(at mx m) %class "")
     :: Has attribute
     ::
@@ -663,18 +705,18 @@
   ++  prepend-attribute                pen:at
   ++  extend-attribute                 ext:at
   ++  remove-attribute                 del:at
-  ++  get-id                           (get:at %id)
-  ++  set-id                           (cury put:at %id)
+  ++  get-id                           gid:at
+  ++  set-id                           pid:at
   ++  modify-id                        (cury jab:at %id)
   ++  prepend-id                       (cury pen:at %id)
   ++  extend-id                        (cury ext:at %id)
-  ++  get-class                        (get:at %class)
-  ++  set-class                        (cury put:at %class)
+  ++  get-class                        gac:at
+  ++  set-class                        pac:at
   ++  modify-class                     (cury jab:at %class)
   ++  prepend-class                    (cury pen:at %class)
   ++  extend-class                     (cury ext:at %class)
-  ++  get-style                        (get:at %style)
-  ++  set-style                        (cury put:at %style)
+  ++  get-style                        ges:at
+  ++  set-style                        pus:at
   ++  modify-style                     (cury jab:at %style)
   ++  prepend-style                    (cury pen:at %style)
   ++  extend-style                     (cury ext:at %style)
@@ -726,27 +768,27 @@
   =<  parse
   =,  parser:monads
   |%
-  ++  parse  |=(=tape (sy (fall (rust tape classes) ~)))
+  ++  parse  |=(=tape (fall (rust tape classes) ~))
   ++  class
     =/  gah=(set @t)  (sy [`@t`10 ' ' ~])
     =|  class=tape
     |-
-    ;<  c=(unit char)  bind  near
-    ?~  c
+    ;<  c=(unit char)  bind  near :: peek at next char; don't consume
+    ?~  c :: if we've fully parsed, return the class so far
       (easy class)
-    ?:  (~(has in gah) u.c)
+    ?:  (~(has in gah) u.c) :: if next char is whitespace, finish
       (easy class)
-    ;<  *  bind  next
-    $(class (weld class u.c ~))
+    ;<  *  bind  next :: actually consume next char
+    $(class (weld class u.c ~)) :: add character and repeat to check next
   ::
   ++  classes
     =|  classes=(list tape)
     |-
-    ;<  white=tape  bind  (star gah)
-    ;<  class=tape  bind  class
-    =?  classes  ?=(^ class)
+    ;<  *           bind  (star gah) :: parse any whitespace
+    ;<  class=tape  bind  class      :: parse a class
+    =?  classes  ?=(^ class)         :: add non-empty class
       [class classes]
-    ;<  d=?  bind  done
+    ;<  d=?  bind  done :: check if fully parsed and return / continue
     ?.  d
       $
     (easy (flop classes)) 
