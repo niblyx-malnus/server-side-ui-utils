@@ -1,4 +1,4 @@
-/+  manx-utils, monads
+/+  manx-utils
 |%
 ++  mx
   |_  a=manx
@@ -235,15 +235,15 @@
     ::
     ++  pac
       |=  t=tape
-      =/  c  (parse-classes (gut:at %class "")) :: current
-      =/  n  (parse-classes t)                  :: new
-      (put:at %class (zing (join " " (weld c n))))
+      =/  c  (classes:parsers (gut:at %class "")) :: current
+      =/  n  (classes:parsers t)                  :: new
+      (put:at %class (inline:classes:parsers (weld c n)))
     :: Delete class(es)
     ::
     ++  dac
       |=  t=tape
-      =/  c  (parse-classes (gut:at %class "")) :: current
-      =/  n  (sy (parse-classes t))             :: new
+      =/  c  (classes:parsers (gut:at %class "")) :: current
+      =/  n  (sy (classes:parsers t))             :: to delete
       =.  c
         |-
         ?~  c
@@ -251,10 +251,25 @@
         ?:  (~(has in n) i.c)
           $(c t.c)
         [i.c $(c t.c)]
-      (put:at %class (zing (join " " c)))
+      (put:at %class (inline:classes:parsers c))
     :: Put style
     ::
-    ++  pus  |=(s=tape (put:at %style s))
+    ++  pus
+      |=  t=tape
+      =/  s  (styles:parsers (gut:at %style "")) :: current
+      =/  n  (styles:parsers t)                  :: new
+      (put:at %style (inline:styles:parsers (~(uni by s) n)))
+    ::
+    ++  dus
+      |=  t=tape
+      =/  s  (styles:parsers (gut:at %style "")) :: current
+      =/  n  (property-names:styles:parsers t)   :: to delete
+      =.  s
+        |-
+        ?~  n
+          s
+        $(n t.n, s (~(del by s) i.n))
+      (put:at %style (inline:styles:parsers s))
     :: Put name
     ::
     ++  pun  |=(n=tape (put:at %name n))
@@ -413,12 +428,12 @@
   ::
   ++  kiz
     =|  i=@
-    |=  f=$-([path manx] ?)
+    |=  =con
     ^-  (list (pair path manx))
     ?~  c.a
       ~
     =/  q  /(scot %ud i)
-    ?.  (f q i.c.a)
+    ?.  (con q i.c.a)
       $(i +(i), c.a t.c.a)
     :-  [q i.c.a]
     $(i +(i), c.a t.c.a)
@@ -427,12 +442,12 @@
   ++  kid
     =|  i=@
     =/  j=@  1 :: 1-indexed
-    |=  [n=@ud f=$-([path manx] ?)]
+    |=  [n=@ud =con]
     ^-  (unit (pair path manx))
     ?~  c.a
       ~
     =/  q  /(scot %ud i)
-    ?.  (f q i.c.a)
+    ?.  (con q i.c.a)
       $(i +(i), c.a t.c.a)
     ?:  =(n j)
       [~ q i.c.a]
@@ -440,9 +455,26 @@
   :: nth last child that satisfies some condition
   ::
   ++  kib
-    |=  [n=@ud f=$-([path manx] ?)]
+    |=  [n=@ud =con]
     =.  c.a  (flop c.a)
-    (kid n f)
+    (kid n con)
+  :: transform children satisfying some condition
+  ::
+  ++  kit
+    |=  [=con =tan]
+    ^-  manx
+    %=    a
+        c
+      =|  i=@
+      |-
+      ?~  c.a
+        ~
+      =/  q  /(scot %ud i)
+      :_  $(i +(i), c.a t.c.a)
+      ?.  (con q i.c.a)
+        i.c.a
+      (tan q i.c.a)
+    ==
   :: Previous sibling
   ::
   ++  pes
@@ -469,16 +501,17 @@
     ?~  g=(get q)
       ~
     [~ q u.g]
+  :: TODO: This should be refactored into pre-order not level-order
   :: Get a list of (pair path manx) which satisfy some condition
   :: All descendants (including self)
   :: level-order
   :: 
   ++  wic
     =|  p=path
-    |=  f=$-([path manx] ?)
+    |=  =con
     |^  ^-  (list (pair path manx))
     %+  weld
-      ?.((f p a) ~ [p a]~)
+      ?.((con p a) ~ [p a]~)
     (cloop-a (en-path p c.a))
     ::
     ++  en-path
@@ -487,7 +520,7 @@
       ^-  (list (pair path manx))
       ?~  c
         ~
-      :_  $(c t.c)
+      :_  $(i +(i), c t.c)
       [(snoc p (scot %ud i)) i.c]
     ::
     ++  cloop-a
@@ -499,7 +532,7 @@
       ?~  l
         (cloop-b c)
       %+  weld
-        ?.((f i.l) ~ [i.l ~])
+        ?.((con i.l) ~ [i.l ~])
       $(l t.l)
     ::
     ++  cloop-b
@@ -511,6 +544,7 @@
         (cloop-a (en-path [p c.q]:i.c))
       $(c t.c)
     --
+  :: TODO: This should be refactored into pre-order not level-order
   :: Get first (pair path manx) which satisfies some condition
   :: if it exists
   :: All descendants (including self)
@@ -518,9 +552,9 @@
   ::
   ++  wif
     =|  p=path
-    |=  f=$-([path manx] ?)
+    |=  =con
     |^  ^-  (unit (pair path manx))
-    ?:  (f p a)
+    ?:  (con p a)
       [~ p a]
     (cloop-a (en-path p c.a))
     ::
@@ -530,7 +564,7 @@
       ^-  (list (pair path manx))
       ?~  c
         ~
-      :_  $(c t.c)
+      :_  $(i +(i), c t.c)
       [(snoc p (scot %ud i)) i.c]
     ::
     ++  cloop-a
@@ -540,7 +574,7 @@
       |-
       ?~  l
         (cloop-b c)
-      ?:  (f i.l)
+      ?:  (con i.l)
         [~ i.l]
       $(l t.l)
     ::
@@ -553,19 +587,40 @@
         u
       $(c t.c)
     --
+  :: Transform descendents which satisfy some condition
+  :: All descendants (including self)
+  :: pre-order
+  :: 
+  ++  wit
+    =|  p=path
+    |=  [=con =tan]
+    ^-  manx
+    =?  a  (con p a)  (tan p a)
+    %=    a
+        c
+      =|  i=@
+      |-
+      ?~  c.a
+        ~
+      :_  $(i +(i), c.a t.c.a)
+      %=  ^$
+        a  i.c.a
+        p  (snoc p (scot %ud i))
+      ==
+    ==
   :: Get a list of (pair path manx) which satisfy some condition
   :: All ancestors (including self)
   ::
   ++  wac
     |=  $:  p=path :: location in tree
-            f=$-([path manx] ?)
+            =con
         ==
     ^-  (list (pair path manx))
     ?~  p
-      ?.((f p a) ~ [p a]~)
+      ?.((con p a) ~ [p a]~)
     =/  m=manx  (got p)
     %+  weld
-      ?.((f p m) ~ [p m]~)
+      ?.((con p m) ~ [p m]~)
     $(p (snip `path`p))
   :: Get first (pair path manx) which satisfies some condition
   :: if it exists
@@ -573,14 +628,29 @@
   ::
   ++  waf
     |=  $:  p=path :: location in tree
-            f=$-([path manx] ?)
+            =con
         ==
     ^-  (unit (pair path manx))
     ?~  p
-      ?.((f p a) ~ [~ p a])
+      ?.((con p a) ~ [~ p a])
     =/  m=manx  (got p)
-    ?:  (f p m)
+    ?:  (con p m)
       [~ p m]
+    $(p (snip `path`p))
+  :: Transform all ancestors (including self)
+  :: which satisfy some condition
+  ::
+  ++  wat
+    |=  $:  p=path :: location in tree
+            =con
+            =tan
+        ==
+    ^-  manx
+    ?~  p
+      ?.((con p a) a (tan p a))
+    =/  m=manx  (got p)
+    =?  a  (con p m)
+      (put p (tan p m))
     $(p (snip `path`p))
   :: Conditions
   ::
@@ -591,11 +661,11 @@
     :: Negate condition
     ::
     ++  not
-      |=  f=con
-      ^-  con
+      |=  =con
+      ^+  con
       |=  [p=path m=manx]
       ^-  ?
-      !(f p m)
+      !(con p m)
     :: Is tag
     ::
     ++  tag
@@ -617,7 +687,7 @@
       |=  [* m=manx] 
       %.  c
       %~  has  in
-      %-  sy  %-  parse-classes
+      %-  sy  %-  classes:parsers
       (gut:~(at mx m) %class "")
     :: Has attribute
     ::
@@ -664,6 +734,20 @@
     ::
     ++  emp  |=([* m=manx] =(~ c.m))
     --
+  :: Transformations
+  ::
+  ++  tan
+    =<  tan
+    |%
+    +$  tan  $-([path manx] manx)
+    ++  pid  |=(i=tape |=([* m=manx] (pid:~(at mx m) i)))
+    ++  pac  |=(c=tape |=([* m=manx] (pac:~(at mx m) c)))
+    ++  dac  |=(c=tape |=([* m=manx] (dac:~(at mx m) c)))
+    ++  pus  |=(s=tape |=([* m=manx] (pus:~(at mx m) s)))
+    ++  dus  |=(s=tape |=([* m=manx] (dus:~(at mx m) s)))
+    ++  pun  |=(n=tape |=([* m=manx] (pun:~(at mx m) n)))
+    ++  puv  |=(v=tape |=([* m=manx] (puv:~(at mx m) v)))
+    --
   :: Some common getters
   ::
   :: Get element by id
@@ -681,22 +765,27 @@
   :: Get elements by attribute
   ::
   ++  git  |=([n=mane v=tape] (wic (tir:con n v)))
+  :: Get all descendants with given name attribute
+  ::
+  ++  gan  |=(v=tape (wic (tir:con %name v)))
   :: First descendant with given name attribute
   ::
-  ++  gan  |=(v=tape (wif (tir:con %name v)))
+  ++  gen  |=(v=tape (wif (tir:con %name v)))
   :: Value attribute of first descendant with given name attribute
   ::
-  ++  val  |=(v=tape ?~(m=(gan v) ~ (get:~(at mx q.u.m) %value)))
+  ++  val  |=(v=tape ?~(m=(gen v) ~ (get:~(at mx q.u.m) %value)))
   :: preorder concatenation of descendant text
   ::
   ++  all-text-content  (zing ~(pre-get-text manx-utils a))
+  :: Returns FIRST element matching CSS selector in pre-order (levl-order?)
   ::
-  ++  inner-text                     !! :: deals with CSS hidden stuff
-  ++  query-selector                 !! :: returns manx     CSS selector
-  ++  query-selector-all             !! :: returns marl (?) CSS selector
-  :: nearest ancestor matching CSS selector
+  ++  query-selector                 !!
+  :: Returns ALL elements matching CSS selector
   ::
-  ++  closest                        !! :: returns manx     CSS selector
+  ++  query-selector-all             !!
+  :: Returns nearest ancestor matching CSS selector
+  ::
+  ++  closest                        !!
   :: aliases
   ::
   ++  get-attribute                    get:at
@@ -742,7 +831,8 @@
   ++  get-elements-by-class-name       gac
   ++  get-elements-with-attribute      gat
   ++  get-elements-by-attribute        git
-  ++  get-first-element-by-name        gan
+  ++  get-elements-by-name             gan
+  ++  get-first-element-by-name        gen
   ++  get-first-value-by-name          val
   ++  get-descendants-by               wic
   ++  get-first-descendant-by          wif
@@ -764,33 +854,187 @@
   ++  nth-last-child-of-type  |=([n=@ud t=mane] (kib n (tag:con t)))
   --
 :: 
-++  parse-classes
-  =<  parse
-  =,  parser:monads
+++  parsers
   |%
-  ++  parse  |=(=tape (fall (rust tape classes) ~))
-  ++  class
-    =/  gah=(set @t)  (sy [`@t`10 ' ' ~])
-    =|  class=tape
-    |-
-    ;<  c=(unit char)  bind  near :: peek at next char; don't consume
-    ?~  c :: if we've fully parsed, return the class so far
-      (easy class)
-    ?:  (~(has in gah) u.c) :: if next char is whitespace, finish
-      (easy class)
-    ;<  *  bind  next :: actually consume next char
-    $(class (weld class u.c ~)) :: add character and repeat to check next
-  ::
   ++  classes
-    =|  classes=(list tape)
-    |-
-    ;<  *           bind  (star gah) :: parse any whitespace
-    ;<  class=tape  bind  class      :: parse a class
-    =?  classes  ?=(^ class)         :: add non-empty class
-      [class classes]
-    ;<  d=?  bind  done :: check if fully parsed and return / continue
-    ?.  d
-      $
-    (easy (flop classes)) 
+    =<  parse
+    =,  monadic
+    |%
+    ++  parse   |=(c=tape `(list tape)`(fall (rust c classes) ~))
+    ++  inline  |=(c=(list tape) (zing (join " " c)))
+    ++  class
+      =|  class=tape
+      |-
+      ;<  c=(unit char)  bind  near :: peek at next char; don't consume
+      ?~  c :: if we've fully parsed, return the class so far
+        (easy class)
+      ?^  (rush u.c gah) :: if next char is whitespace, finish
+        (easy class)
+      ;<  *  bind  next :: actually consume next char
+      $(class (weld class u.c ~)) :: add character and repeat to check next
+    ::
+    ++  classes
+      =|  classes=(list tape)
+      |-
+      ;<  *           bind  (star gah) :: parse any whitespace
+      ;<  class=tape  bind  class      :: parse a class
+      =?  classes  ?=(^ class)         :: add non-empty class
+        [class classes]
+      ;<  d=?  bind  done :: check if fully parsed and return / continue
+      ?.  d
+        $
+      (easy (flop classes)) 
+    --
+  ::
+  ++  styles
+    =<  parse
+    =,  monadic
+    |%
+    ++  parse
+      |=  s=tape
+      ^-  (map tape tape)
+      %-  ~(gas by *(map tape tape))
+      (fall (rust s styles) ~)
+    ::
+    ++  inline
+      |=  s=(map tape tape)
+      ^-  tape
+      %-  zing
+      %+  join  " "
+      %+  turn  ~(tap by s)
+      |=  [k=tape v=tape]
+      :(weld k ": " v ";")
+    ::
+    ++  property-name
+      ;~  plug
+        ;~(pose low hig hep)
+        (star ;~(pose low hig nud hep cab))
+      ==
+    ::
+    ++  property-names
+      |=  s=tape
+      ^-  (list tape)
+      =-  (fall (rust s -) ~)
+      =|  names=(list tape)
+      |-
+      ;<  *          bind  (star gah)    :: parse any whitespace
+      ;<  name=tape  bind  property-name :: parse a name
+      =?  names  ?=(^ name)              :: add non-empty name
+        [name names]
+      ;<  d=?  bind  done :: check if fully parsed and return / continue
+      ?.  d
+        $
+      (easy (flop names)) 
+    :: parse everything between double quotes
+    ::
+    ++  doqseg
+      ;<  c=char  bind  doq :: starts with double quote
+      =/  seg=tape  [c ~]  
+      |-
+      ;<  n=@t  bind  ;~(pose (jest '\\"') next)
+      =.  seg  (weld seg (trip n))
+      ?~  (rush n doq)
+        $
+      (easy seg)
+    :: parse everything between single quotes
+    ::
+    ++  soqseg
+      ;<  c=char  bind  soq :: starts with double quote
+      =/  seg=tape  [c ~]  
+      |-
+      ;<  n=@t  bind  ;~(pose (jest '\\\'') next)
+      =.  seg  (weld seg (trip n))
+      ?~  (rush n soq)
+        $
+      (easy seg)
+    ::
+    ++  value-element
+      ;~  pose
+        doqseg
+        soqseg
+        (star (non ;~(pose gah mic)))
+      ==
+    ::
+    ++  property-value
+      ;<  e=tape  bind  value-element
+      =/  value=tape  e
+      |-
+      ;<  end=?  bind  (rest (star gah))
+      ?:  end
+        (easy value)
+      ;<  n=(unit *)  bind  (peek ;~(plug (star gah) mic))
+      ?^  n
+        (easy value)
+      ;<  w=tape  bind  (star gah)
+      ;<  e=tape  bind  value-element
+      $(value :(weld value w e))
+    ::
+    ++  name-and-value
+      ;<  *           bind  (star gah)
+      ;<  name=tape   bind  property-name
+      ;<  *           bind  ;~(plug (star gah) col (star gah))
+      ;<  value=tape  bind  property-value
+      ;<  *           bind  (star gah)
+      ;<  d=?         bind  done
+      ;<  *           bind  ?.(d mic (easy ~))
+      (easy [name value])
+    ::
+    ++  styles  (star name-and-value)
+    --
+  ::
+  ++  monadic
+    |%
+    ++  pure  easy
+    ++  bind  
+      |*  =mold
+      |*  [sef=rule gat=$-(mold rule)]
+      |=  tub=nail
+      =/  vex  (sef tub)
+      ?~  q.vex  vex
+      ((gat p.u.q.vex) q.u.q.vex)
+    :: check if done
+    ::
+    ++  done
+      |=  tub=nail
+      ^-  (like ?)
+      ?~  q.tub
+        [p.tub ~ %.y tub]
+      [p.tub ~ %.n tub]
+    :: lookahead one character
+    ::
+    ++  near
+      |=  tub=nail
+      ^-  (like (unit char))
+      ?~  q.tub
+        [p.tub ~ ~ tub]
+      [p.tub ~ `i.q.tub tub]
+    :: lookahead arbitrary rule
+    ::
+    ++  peek
+      |*  sef=rule
+      |=  tub=nail
+      =+  vex=(sef tub)
+      ?~  q.vex
+        [p=p.vex q=[~ u=[p=~ q=tub]]]
+      [p=p.vex q=[~ u=[p=[~ p.u.q.vex] q=tub]]]
+    :: Does the given rule parse to the end?
+    ::
+    ++  rest
+      |*  sef=rule
+      |=  tub=nail
+      =+  vex=(sef tub)
+      ?~  q.vex
+        [p=p.vex q=[~ u=[p=%.n q=tub]]]
+      ?~  q.q.u.q.vex
+        [p=p.vex q=[~ u=[p=%.y q=tub]]]
+      [p=p.vex q=[~ u=[p=%.n q=tub]]]
+    :: next if fail to parse on rule 
+    :: (assumes single character parse)
+    ::
+    ++  non
+      |*  sef=rule
+      ;<  c=(unit char)  bind  (peek sef)
+      ?^(c fail next)
+    --
   --
 --
